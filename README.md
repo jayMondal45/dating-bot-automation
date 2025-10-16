@@ -28,7 +28,7 @@ This project is for **educational use only** — do not use it to spam, scrape d
 
 - **Python 3.10+**
 - **Selenium WebDriver**
-- **Google Chrome** (or **Brave**) browser
+- **Google Chrome**
 
 ---
 
@@ -40,28 +40,30 @@ This project is for **educational use only** — do not use it to spam, scrape d
    cd dating-bot-automation
    
 2. **Install dependencies**
+   ```bash
    pip install selenium python-dotenv
 
-3. **Add your credentials**
-   Create a file named .env in the project root:
-   FB_EMAIL=your_email_here
-   FB_PASSWORD=your_password_here
-   MY_NUMBER=your_phone_here
+4. **Add your credentials**
+   - Create a file named .env in the project root:
+      - FB_EMAIL=your_email_here
+      - FB_PASSWORD=your_password_here
+      - MY_NUMBER=your_phone_here
 
-4. **Run the bot**
+5. **Run the bot**
+   ```bash
    python main.py
 
 ---
 
 ## 📂 Project Structure
 
-dating-bot-automation/
-│
-├── tinder_bot.py        # main automation script
-├── .env.example         
-├── .gitignore
-├── README.md
-└── LICENSE
+- dating-bot-automation/
+- │
+- ├── tinder_bot.py        
+- ├── .env.example         
+- ├── .gitignore
+- ├── README.md
+- └── LICENSE
 
 ---
 
@@ -77,10 +79,10 @@ This project helped me learn:
 
 ## ✨ Author
 
-Joy Mondal
-💻 GitHub: https://github.com/jayMondal45
-🌐 Live Demo: https://jaymondal45.github.io/dating-bot-automation/
-📧 Email: jaymondals953@gmail.com
+- **Joy Mondal**
+- **💻 GitHub:** https://github.com/jayMondal45
+- **🌐 Live Demo:** https://jaymondal45.github.io/dating-bot-automation/
+- **📧 Email:** jaymondals953@gmail.com
 
 
 
