@@ -58,8 +58,7 @@ This project is for **educational use only** — do not use it to spam, scrape d
 ## 📂 Project Structure
 
 - dating-bot-automation/
-- │
-- ├── tinder_bot.py        
+- ├── main.py        
 - ├── .env.example         
 - ├── .gitignore
 - ├── README.md
