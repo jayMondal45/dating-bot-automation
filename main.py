@@ -3,6 +3,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.webdriver.common.keys import Keys
 import time
 
 FB_Email = "your_email_here"
@@ -56,21 +57,67 @@ try:
         print("✓ Cookies accepted")
         time.sleep(1)
     
-    # find and click login
+    # find and click login - with multiple selectors
     print("Looking for login button...")
-    if wait_and_click(driver, By.XPATH, "//a[contains(., 'Log in')]", timeout=5):
-        print("✓ Login button clicked")
-        time.sleep(2)
+    login_selectors = [
+        "//a[contains(., 'Log in')]",
+        "//button[contains(., 'Log in')]",
+        "//span[contains(., 'Log in')]/parent::button",
+        "//a[@href='/login']",
+        "//button[@data-testid='loginButton']"
+    ]
     
-    # use facebook login
+    login_clicked = False
+    for selector in login_selectors:
+        if wait_and_click(driver, By.XPATH, selector, timeout=3):
+            print("✓ Login button clicked")
+            login_clicked = True
+            time.sleep(2)
+            break
+    
+    if not login_clicked:
+        print("❌ Could not find login button")
+        raise Exception("Login button not found")
+    
+    # use facebook login - with multiple selectors
     print("Looking for Facebook login option...")
-    if wait_and_click(driver, By.XPATH, "//button[contains(., 'Facebook')]", timeout=5):
-        print("✓ Facebook login clicked")
-        time.sleep(3)
+    facebook_selectors = [
+        "//button[contains(., 'Facebook')]",
+        "//span[contains(., 'Facebook')]/parent::button",
+        "//button[contains(@aria-label, 'Facebook')]",
+        "//div[contains(., 'Facebook')]/ancestor::button",
+        "//button[@data-testid='facebookLogin']"
+    ]
     
-    # wait for fb popup to appear
+    facebook_clicked = False
+    for selector in facebook_selectors:
+        if wait_and_click(driver, By.XPATH, selector, timeout=5):
+            print("✓ Facebook login clicked")
+            facebook_clicked = True
+            time.sleep(3)
+            break
+    
+    if not facebook_clicked:
+        print("❌ Could not find Facebook login button")
+        # Try to see what login options are available
+        print("Available login options:")
+        try:
+            login_options = driver.find_elements(By.XPATH, "//button | //a[contains(., 'Log')]")
+            for option in login_options:
+                print(f" - {option.text}")
+        except:
+            pass
+        raise Exception("Facebook login button not found")
+    
+    # wait for fb popup to appear with longer timeout
     print("Waiting for Facebook login popup...")
-    WebDriverWait(driver, 10).until(lambda d: len(d.window_handles) > 1)
+    try:
+        WebDriverWait(driver, 15).until(lambda d: len(d.window_handles) > 1)
+        print("✓ Facebook popup detected")
+    except TimeoutException:
+        print("❌ Facebook popup did not appear")
+        print("Current window handles:", len(driver.window_handles))
+        raise Exception("Facebook login popup timeout")
     
     base_window = driver.window_handles[0]
     fb_login_window = driver.window_handles[1]
@@ -84,6 +131,17 @@ try:
         email_field.clear()
         email_field.send_keys(FB_Email)
         print("✓ Email entered")
+    else:
+        print("❌ Could not find email field")
+        # Try alternative selectors for email
+        alt_email_selectors = ["//input[@name='email']", "//input[@type='email']"]
+        for selector in alt_email_selectors:
+            email_field = wait_for_element(driver, By.XPATH, selector, timeout=3)
+            if email_field:
+                email_field.clear()
+                email_field.send_keys(FB_Email)
+                print("✓ Email entered (alternative selector)")
+                break
     
     # fill in password
     print("Entering Facebook password...")
@@ -92,11 +150,41 @@ try:
         password_field.clear()
         password_field.send_keys(FB_Password)
         print("✓ Password entered")
+    else:
+        print("❌ Could not find password field")
+        # Try alternative selectors for password
+        alt_password_selectors = ["//input[@name='pass']", "//input[@type='password']"]
+        for selector in alt_password_selectors:
+            password_field = wait_for_element(driver, By.XPATH, selector, timeout=3)
+            if password_field:
+                password_field.clear()
+                password_field.send_keys(FB_Password)
+                print("✓ Password entered (alternative selector)")
+                break
     
     # submit the login form
     print("Clicking Facebook login button...")
-    if wait_and_click(driver, By.CSS_SELECTOR, "input[type='submit']", timeout=5):
-        print("✓ Facebook login submitted")
+    login_button_selectors = [
+        "input[type='submit']",
+        "button[type='submit']",
+        "//button[contains(., 'Log In')]",
+        "//input[contains(@value, 'Log In')]"
+    ]
+    
+    login_submitted = False
+    for selector in login_button_selectors:
+        if wait_and_click(driver, By.CSS_SELECTOR if '[' in selector else By.XPATH, selector, timeout=5):
+            print("✓ Facebook login submitted")
+            login_submitted = True
+            break
+    
+    if not login_submitted:
+        print("⚠️ Could not find login button, trying to submit form by pressing Enter...")
+        try:
+            password_field.send_keys(Keys.ENTER)
+            print("✓ Login submitted via Enter key")
+        except:
+            print("❌ Could not submit login form")
     
     # give it some time to load
     time.sleep(5)
@@ -145,11 +233,23 @@ try:
                 print("    (I will click the submit button for you)\n")
                 input("Press Enter AFTER entering the OTP code...")
                 
-                # try to click submit automatically
-                print("Looking for OTP submit button...")
-                if wait_and_click(driver, By.XPATH, '//*[@id="q484845104"]/div/div/div[2]/div[2]/div[4]/button', timeout=5):
-                    print("✓ OTP submit button clicked")
-                else:
+                # Better OTP submit button selectors
+                otp_selectors = [
+                    "//button[contains(., 'Submit')]",
+                    "//button[contains(., 'Verify')]",
+                    "//button[contains(., 'Next')]",
+                    "//button[@type='submit']",
+                    "//button[contains(@class, 'button') and contains(., 'Continue')]"
+                ]
+                
+                otp_submitted = False
+                for selector in otp_selectors:
+                    if wait_and_click(driver, By.XPATH, selector, timeout=3):
+                        print("✓ OTP submit button clicked")
+                        otp_submitted = True
+                        break
+                
+                if not otp_submitted:
                     print("⚠️ Could not find submit button automatically")
                     print("Please click the 'Next' button manually in the browser now")
                     input("Press Enter after clicking the button...")
@@ -172,127 +272,145 @@ try:
     
     time.sleep(3)
     
-    # handle location permission popup
-    print("Checking for location permission...")
-    if wait_and_click(driver, By.XPATH, "//button[contains(., 'Allow')]", timeout=3):
-        print("✓ Location permission granted")
-        time.sleep(2)
+    # Improved popup handling with more selectors
+    popups_to_handle = [
+        ("location permission", "//button[contains(., 'Allow')]", 3),
+        ("notification permission", "//button[contains(., 'Notify me')]", 3),
+        ("notification skip", "//button[contains(., \"I'll miss out\") or contains(., 'Not interested')]", 3),
+        ("face verification", "//button[contains(., 'Maybe later') or contains(., 'Skip')]", 3),
+        ("premium offer", "//button[contains(., 'No Thanks') or contains(., 'Continue')]", 3),
+        ("close popup", "//button[@aria-label='Close']", 3),
+        ("close popup", "//button[contains(@class, 'close')]", 3)
+    ]
     
-    # handle notification popup
-    print("Checking for notification permission...")
-    clicked_notify = False
-    if wait_and_click(driver, By.XPATH, "//button[contains(., 'Notify me')]", timeout=5):
-        print("✓ Notifications enabled (Notify me)")
-        time.sleep(3)
-        clicked_notify = True
-    
-    if not clicked_notify:
-        if wait_and_click(driver, By.XPATH, "//button[contains(., \"I'll miss out\")]", timeout=3):
-            print("✓ Skipped notifications (I'll miss out)")
+    for popup_name, selector, timeout in popups_to_handle:
+        print(f"Checking for {popup_name}...")
+        if wait_and_click(driver, By.XPATH, selector, timeout):
+            print(f"✓ {popup_name} handled")
             time.sleep(2)
-    
-    # skip face verification if it pops up
-    print("Checking for face verification screen...")
-    if wait_and_click(driver, By.XPATH, "//button[contains(., 'Maybe later')]", timeout=5):
-        print("✓ Face verification skipped (Maybe later)")
-        time.sleep(3)
-    
-    # dismiss any random popups
-    print("Checking for additional popups...")
-    if wait_and_click(driver, By.XPATH, "//button[contains(., 'Not interested')]", timeout=3):
-        print("✓ Additional popup dismissed")
-        time.sleep(2)
     
     print("\n✅ Login complete! Ready for automation.")
     
-    # now let's start swiping - REJECT ONLY
-    print("Starting to REJECT profiles automatically...")
+    # now let's start swiping - LIKE ONLY
+    print("Starting to LIKE profiles automatically...")
     swipe_count = 0
-    max_swipes = 50  # safety limit
+    max_swipes = 100  # increased limit since you're liking
     
     while swipe_count < max_swipes:
         try:
-            time.sleep(2)  # wait for profile to load
+            time.sleep(1.5)  # reduced wait time for faster swiping
             
-            # Multiple selectors for reject button (Nope/Dislike)
-            reject_selectors = [
-                '//button[contains(@aria-label, "Nope")]',
-                '//button[contains(@data-testid, "dislike")]',
-                '//button[contains(@title, "Nope")]',
-                '//button[.//*[contains(text(), "Nope")]]',
-                '//button[.//*[contains(@aria-label, "Nope")]]',
-                '//button[contains(@class, "button") and contains(@class, "dislike")]',
-                '//span[contains(text(), "Nope")]/ancestor::button',
-                '//button[contains(., "Nope")]',
-                '//button[contains(@class, "dislike")]',
+            # Multiple selectors for like button (Like)
+            like_selectors = [
+                '//*[@id="main-content"]/div[1]/div/div/div/div[1]/div/div/div[5]/div/div[4]/button',  # Your specific XPath
+                '//button[contains(@aria-label, "Like")]',
+                '//button[contains(@data-testid, "like")]',
+                '//button[contains(@title, "Like")]',
+                '//button[.//*[contains(text(), "Like")]]',
+                '//button[.//*[contains(@aria-label, "Like")]]',
+                '//button[contains(@class, "button") and contains(@class, "like")]',
+                '//span[contains(text(), "Like")]/ancestor::button',
+                '//button[contains(., "Like")]',
+                '//button[contains(@class, "like")]',
+                # Additional selectors for different Tinder layouts
+                '//button[contains(@data-test-id, "gamepadLike")]',
+                '//button[contains(@aria-label, "Add to Likes")]',
             ]
             
-            reject_clicked = False
+            like_clicked = False
             
             # Try each selector until one works
-            for selector in reject_selectors:
+            for selector in like_selectors:
                 try:
-                    reject_btn = WebDriverWait(driver, 3).until(
+                    like_btn = WebDriverWait(driver, 2).until(
                         EC.element_to_be_clickable((By.XPATH, selector))
                     )
-                    reject_btn.click()
+                    like_btn.click()
                     swipe_count += 1
-                    print(f"✓ Swipe {swipe_count}: REJECTED ❌")
-                    reject_clicked = True
+                    print(f"✓ Swipe {swipe_count}: LIKED ❤️")
+                    like_clicked = True
                     break
                 except:
                     continue
             
-            # If no reject button found, try pressing Escape key as fallback
-            if not reject_clicked:
-                from selenium.webdriver.common.keys import Keys
+            # If no like button found, try pressing Right Arrow key as fallback
+            if not like_clicked:
                 try:
                     body = driver.find_element(By.TAG_NAME, 'body')
-                    body.send_keys(Keys.ESCAPE)  # Escape key often rejects
+                    body.send_keys(Keys.ARROW_RIGHT)  # Right arrow often likes
                     swipe_count += 1
-                    print(f"✓ Swipe {swipe_count}: REJECTED (ESC key) ❌")
-                    reject_clicked = True
+                    print(f"✓ Swipe {swipe_count}: LIKED (Right Arrow) ❤️")
+                    like_clicked = True
                 except:
                     pass
             
-            # If still no success, wait and try again
-            if not reject_clicked:
-                print(f"⚠️ Could not find reject button for swipe {swipe_count + 1}, waiting...")
-                time.sleep(3)
+            # If still no success, check for various conditions
+            if not like_clicked:
+                print(f"⚠️ Could not find like button for swipe {swipe_count + 1}, checking for issues...")
+                time.sleep(2)
                 
-                # Check if we're out of swipes or have a popup
+                # Check if we're out of likes
                 try:
-                    out_of_swipes = driver.find_elements(By.XPATH, "//*[contains(text(), 'out of likes') or contains(text(), 'See Who Likes You')]")
-                    if out_of_swipes:
-                        print("🚫 Out of swipes for today!")
+                    out_of_likes = driver.find_elements(By.XPATH, "//*[contains(text(), 'out of likes') or contains(text(), 'See Who Likes You') or contains(text(), 'Get Tinder Gold')]")
+                    if out_of_likes:
+                        print("🚫 Out of likes for today!")
                         break
                 except:
                     pass
+                
+                # Check for match popup
+                try:
+                    match_popup = driver.find_elements(By.XPATH, "//*[contains(text(), 'It\'s a Match') or contains(text(), 'You matched')]")
+                    if match_popup:
+                        print("🎉 MATCH! Closing popup...")
+                        # Try to close match popup
+                        body.send_keys(Keys.ESCAPE)
+                        time.sleep(1)
+                        continue
+                except:
+                    pass
+                
+                # Check for any other popups
+                popup_closed = False
+                popup_selectors = [
+                    "//button[contains(., 'Maybe Later')]",
+                    "//button[contains(., 'Not interested')]",
+                    "//button[contains(., 'No Thanks')]",
+                    "//button[@aria-label='Close']",
+                    "//button[contains(@class, 'close')]",
+                    "//button[contains(., 'Keep Swiping')]"
+                ]
+                
+                for selector in popup_selectors:
+                    try:
+                        close_btn = driver.find_element(By.XPATH, selector)
+                        close_btn.click()
+                        print("✓ Closed popup")
+                        popup_closed = True
+                        time.sleep(1)
+                        break
+                    except:
+                        continue
+                
+                if popup_closed:
+                    continue
+                
+                print("⏳ Waiting a bit longer and retrying...")
+                time.sleep(3)
                 
         except Exception as e:
             print(f"❌ Error on swipe {swipe_count + 1}: {str(e)[:100]}")
             time.sleep(2)
             
-            # Check for common popups and close them
-            popup_selectors = [
-                "//button[contains(., 'Maybe Later')]",
-                "//button[contains(., 'Not interested')]",
-                "//button[contains(., 'No Thanks')]",
-                "//button[@aria-label='Close']",
-                "//button[contains(@class, 'close')]"
-            ]
-            
-            for selector in popup_selectors:
-                try:
-                    close_btn = driver.find_element(By.XPATH, selector)
-                    close_btn.click()
-                    print("✓ Closed popup")
-                    time.sleep(1)
-                    break
-                except:
-                    continue
+            # Try to recover by pressing Escape
+            try:
+                body = driver.find_element(By.TAG_NAME, 'body')
+                body.send_keys(Keys.ESCAPE)
+                time.sleep(1)
+            except:
+                pass
     
-    print(f"\n✅ Finished! Rejected {swipe_count} profiles.")
+    print(f"\n✅ Finished! Liked {swipe_count} profiles.")
     
 except Exception as e:
     print(f"\n❌ Error occurred: {str(e)}")
